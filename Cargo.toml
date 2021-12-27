@@ -16,3 +16,7 @@ tracing-subscriber = { version="0.3", features=["env-filter"] }
 [[bin]]
 name = "server"
 path = "src/server/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client/main.rs"
