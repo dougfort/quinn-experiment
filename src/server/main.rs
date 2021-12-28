@@ -12,10 +12,11 @@ use tracing_futures::Instrument as _;
 mod certs;
 
 // TODO: get from config
-pub(crate) const KEY_PATH: &str = r#"/home/dougfort/Development/rcgen/certs/key.der"#;
-pub(crate) const CERT_PATH: &str = r#"/home/dougfort/Development/rcgen/certs/cert.der"#;
-pub(crate) const ROOT_PATH: &str = r#"/home/dougfort/Development/quinn"#;
-pub(crate) const LISTEN_ADDRESS: &str = "[::1]:4433";
+const KEY_PATH: &str = r#"/home/dougfort/Development/rcgen/certs/key.der"#;
+const CERT_PATH: &str = r#"/home/dougfort/Development/rcgen/certs/cert.der"#;
+const ROOT_PATH: &str = r#"/home/dougfort/Development/quinn"#;
+const LISTEN_ADDRESS: &str = "[::1]:4433";
+const ALPN_QUIC_HTTP: &[&[u8]] = &[b"hq-29"];
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -31,10 +32,11 @@ async fn main() -> Result<()> {
 
     let (certs, key) = certs::load_certs(KEY_PATH, CERT_PATH)?;
 
-    let server_crypto = rustls::ServerConfig::builder()
+    let mut server_crypto = rustls::ServerConfig::builder()
         .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(certs, key)?;
+    server_crypto.alpn_protocols = ALPN_QUIC_HTTP.iter().map(|&x| x.into()).collect();
 
     let mut server_config = quinn::ServerConfig::with_crypto(Arc::new(server_crypto));
     Arc::get_mut(&mut server_config.transport)
@@ -150,7 +152,7 @@ async fn handle_request(
 }
 
 fn process_get(root: &Path, x: &[u8]) -> Result<Vec<u8>> {
-    if x.len() < 4 || &x[0..4] != b"GET" {
+    if x.len() < 4 || &x[0..4] != b"GET " {
         bail!("missing GET");
     }
     if x[4..].len() < 2 || &x[x.len() - 2..] != b"\r\n" {
